@@ -1,0 +1,35 @@
+# Definições Padrão (Fallback) caso alguma rota não tenha config específica
+defaults:
+  max_tokens: 100        # Capacidade padrão do balde (Burst)
+  refill_per_sec: 10     # Taxa de recarga padrão
+  penalty: 1             # Custo padrão por requisição
+  global_timeout: 2000     # Timeout global para todas as rotas em ms
+
+routes:
+  # Exemplo 1: Rota de Leitura (GET) - Alta capacidade, baixo custo
+  - path: "/dict/{ownerId}/key"
+    host: "www.google.com.br"
+    method: "GET"
+    # Configuração do Token Bucket
+    max_tokens: 500       # Balde grande: Permite burst de até 500 consultas súbitas
+    refill_per_sec: 200   # Recupera rápido: 200 tokens/s
+    penalty: 1            # Barato: Consome apenas 1 ficha por request.
+    bucket_key: "ownerId" # O rate limit é por :ownerId (Parâmetro da URL)
+
+  # Exemplo 2: Rota de Escrita (POST) - Baixa capacidade, alto custo
+  - path: "/dict/{ownerId}/key"
+    host: "www.google.com.br"
+    method: "POST"
+    max_tokens: 50        # Balde pequeno: Não queremos bursts de escrita massiva
+    refill_per_sec: 5     # Recupera devagar: Apenas 5 tokens/s
+    penalty: 10           # Caro: Consome 10 fichas (1 escrita = 10 leituras)
+    bucket_key: "ownerId"
+
+  # Exemplo 3: Rota de Pagamento Pix (Transação Crítica)
+  - path: "/pix/payments/{accountId}"
+    host: "api.pix.banco.internal"
+    method: "POST"
+    max_tokens: 30        # Burst limitado para segurança
+    refill_per_sec: 2     # Apenas 2 tx/s de recarga contínua
+    penalty: 5            # Custo moderado por requisição
+    bucket_key: "accountId" # Rate limit segregado por conta

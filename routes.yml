@@ -3,55 +3,13 @@ defaults:
   max_tokens: 100        # Capacidade padrão do balde (Burst)
   refill_per_sec: 10     # Taxa de recarga padrão
   penalty: 1             # Custo padrão por requisição
+  global_timeout: 2000     # Timeout global para todas as rotas em ms
 
 routes:
-  # -----------------------------------------------------------------------
-  # ROTA: Consulta de Chave DICT
-  # Cenário: Alta frequência, baixo custo computacional (Cache/Leitura).
-  # -----------------------------------------------------------------------
-  - path: "/dict/:ownerId/key"
+  - path: "/dict/{ownerId}/key"
+    host: "http://localhost:3000"
     method: "GET"
-    
-    # Configuração do Token Bucket
-    max_tokens: 500       # Balde grande: Permite burst de até 500 consultas súbitas
-    refill_per_sec: 200   # Recupera rápido: 200 tokens/s
-    
-    # A REGRA DE PENALIDADE
-    penalty: 1            # Barato: Consome apenas 1 ficha por request.
-    
-    # Identificador do dono do balde (quem paga a conta)
-    bucket_key: "ownerId" # O rate limit é por :ownerId (Parâmetro da URL)
-
-  # -----------------------------------------------------------------------
-  # ROTA: Criação/Reivindicação de Chave DICT
-  # Cenário: Baixa frequência, alto custo (Escrita no DB, consistência forte).
-  # -----------------------------------------------------------------------
-  - path: "/dict/:ownerId/key"
-    method: "POST"
-    
-    # Configuração do Token Bucket
-    max_tokens: 50        # Balde pequeno: Não queremos bursts de escrita massiva
-    refill_per_sec: 5     # Recupera devagar: Apenas 5 tokens/s
-    
-    # A REGRA DE PENALIDADE (ALTA)
-    penalty: 10           # Caro: Consome 10 fichas. 
-                          # Significa que 1 escrita "custa" o mesmo que 10 leituras.
-                          # Se o balde tiver 9 fichas, essa request é rejeitada (429).
-    
+    max_tokens: 500      
+    refill_per_sec: 200   
+    penalty: 1            
     bucket_key: "ownerId"
-
-  # -----------------------------------------------------------------------
-  # ROTA: Iniciação de Pagamento (PACS.008)
-  # Cenário: Crítico. Deve garantir passagem, mas evitar flood.
-  # -----------------------------------------------------------------------
-  - path: "/pix/v2/payment"
-    method: "POST"
-    
-    max_tokens: 1000
-    refill_per_sec: 100
-    
-    # Penalidade média
-    penalty: 5            # Custo moderado.
-    
-    # Exemplo de chave composta ou header (caso precise controlar por PSP parceiro)
-    bucket_key: "header:x-participant-id"
